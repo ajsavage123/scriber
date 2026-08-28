@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { SOAPNote } from "@/lib/types";
-import { CheckCircle2, Trash2, Plus, AlertCircle } from "lucide-react";
+import { CheckCircle2, Trash2, Plus, GripVertical, Download, AlertTriangle, Stethoscope, ClipboardList } from "lucide-react";
 
 interface NoteEditorProps {
   initialNote: SOAPNote;
@@ -11,9 +11,39 @@ interface NoteEditorProps {
 }
 
 export default function NoteEditor({ initialNote, onSave, onErase, isFinalized = false }: NoteEditorProps) {
-  const [note, setNote] = useState<SOAPNote>(initialNote);
+  const [note, setNote] = useState<SOAPNote>({
+    chief_complaint: initialNote?.chief_complaint || "",
+    history_of_present_illness: initialNote?.history_of_present_illness || "",
+    subjective: initialNote?.subjective || initialNote?.history_of_present_illness || "",
+    objective: initialNote?.objective || "",
+    assessment: initialNote?.assessment || "",
+    allergies: initialNote?.allergies || [],
+    medications: initialNote?.medications || [],
+    plan: initialNote?.plan || [],
+    follow_up: initialNote?.follow_up || "",
+    doctor_speaker_id: initialNote?.doctor_speaker_id || "Speaker 0",
+    patient_speaker_id: initialNote?.patient_speaker_id || "Speaker 1",
+  });
   const [saving, setSaving] = useState(false);
   const [erasing, setErasing] = useState(false);
+
+  React.useEffect(() => {
+    if (initialNote) {
+      setNote({
+        chief_complaint: initialNote.chief_complaint || "",
+        history_of_present_illness: initialNote.history_of_present_illness || "",
+        subjective: initialNote.subjective || initialNote.history_of_present_illness || "",
+        objective: initialNote.objective || "",
+        assessment: initialNote.assessment || "",
+        allergies: initialNote.allergies || [],
+        medications: initialNote.medications || [],
+        plan: initialNote.plan || [],
+        follow_up: initialNote.follow_up || "",
+        doctor_speaker_id: initialNote.doctor_speaker_id || "Speaker 0",
+        patient_speaker_id: initialNote.patient_speaker_id || "Speaker 1",
+      });
+    }
+  }, [initialNote]);
 
   const handlePlanChange = (idx: number, val: string) => {
     const updatedPlan = [...note.plan];
@@ -35,6 +65,16 @@ export default function NoteEditor({ initialNote, onSave, onErase, isFinalized =
     setNote({ ...note, medications: [...note.medications, { name: "", dosage: "", frequency: "" }] });
   };
 
+  const handleAllergyChange = (idx: number, val: string) => {
+    const updated = [...(note.allergies || [])];
+    updated[idx] = val;
+    setNote({ ...note, allergies: updated });
+  };
+
+  const addAllergy = () => {
+    setNote({ ...note, allergies: [...(note.allergies || []), ""] });
+  };
+
   const handleSignOff = async () => {
     setSaving(true);
     try {
@@ -45,135 +85,228 @@ export default function NoteEditor({ initialNote, onSave, onErase, isFinalized =
   };
 
   const handleEraseRecord = async () => {
-    if (confirm("Are you sure? This will permanently delete this medical record under DPDP Act.")) {
-      setErasing(true);
-      try {
-        await onErase();
-      } finally {
-        setErasing(false);
-      }
+    setErasing(true);
+    try {
+      await onErase();
+    } finally {
+      setErasing(false);
     }
   };
 
+  const handleExportNote = () => {
+    const textContent = `
+CLINICAL SOAP NOTE SUMMARY
+==========================
+CHIEF COMPLAINT:
+${note.chief_complaint}
+
+ALLERGIES & REACTION:
+${note.allergies?.join(", ") || "No known drug allergies (NKDA)"}
+
+SUBJECTIVE (HPI):
+${note.subjective || note.history_of_present_illness}
+
+OBJECTIVE (PHYSICAL EXAM & VITALS):
+${note.objective}
+
+ASSESSMENT & DIAGNOSIS:
+${note.assessment}
+
+PRESCRIPTIONS:
+${note.medications?.map(m => `- ${m.name} ${m.dosage} (${m.frequency})`).join("\n") || "None prescribed"}
+
+TREATMENT PLAN:
+${note.plan?.map((p, i) => `${i + 1}. ${p}`).join("\n")}
+
+FOLLOW-UP:
+${note.follow_up}
+`;
+
+    const element = document.createElement("a");
+    const file = new Blob([textContent], { type: "text/plain" });
+    element.href = URL.createObjectURL(file);
+    element.download = `SOAP_Note_${Date.now()}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const inputClass = "w-full text-sm bg-white/95 border border-slate-200/90 rounded-2xl p-3 text-slate-800 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 outline-none transition-all duration-200 hover:border-slate-300 shadow-xs placeholder:text-slate-400 font-medium";
+  const labelClass = "block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1";
+
   return (
-    <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm space-y-5">
-      <div className="flex items-center justify-between pb-3 border-b">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900">Clinical SOAP Note</h3>
-          <p className="text-xs text-gray-500">Standardized Medical English Output</p>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Scrollable Clinical Note Form Fields */}
+      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 pb-6">
+        
+        {/* Chief Complaint */}
+        <div className="group">
+          <label className={labelClass}>Chief Complaint</label>
+          <input
+            type="text"
+            value={note.chief_complaint}
+            onChange={(e) => setNote({ ...note, chief_complaint: e.target.value })}
+            className={inputClass}
+            placeholder="e.g., Severe headache & fever for 3 days"
+          />
         </div>
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            isFinalized ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-          }`}
-        >
-          {isFinalized ? "Signed & Approved" : "AI Draft (Review Required)"}
-        </span>
+
+        {/* Allergies Alert Section */}
+        <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-200/80 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
+              Allergies & Adverse Reactions
+            </label>
+            <button onClick={addAllergy} className="text-xs text-amber-800 hover:text-amber-900 bg-amber-200/80 hover:bg-amber-300 px-2.5 py-1 rounded-lg flex items-center gap-1 font-bold transition-colors cursor-pointer">
+              <Plus className="w-3.5 h-3.5" /> Add Allergy
+            </button>
+          </div>
+          <div className="space-y-2">
+            {note.allergies?.map((allergy, idx) => (
+              <input
+                key={idx}
+                value={allergy}
+                onChange={(e) => handleAllergyChange(idx, e.target.value)}
+                className={`${inputClass} !p-2.5 !text-xs border-amber-200 focus:ring-amber-500`}
+                placeholder="e.g., Penicillin, NSAIDs"
+              />
+            ))}
+            {(!note.allergies || note.allergies.length === 0) && (
+              <p className="text-xs text-amber-700/80 italic font-medium">No known drug allergies recorded (NKDA).</p>
+            )}
+          </div>
+        </div>
+
+        {/* Subjective */}
+        <div className="group">
+          <label className={labelClass}>Subjective (HPI)</label>
+          <textarea
+            rows={3}
+            value={note.subjective || note.history_of_present_illness}
+            onChange={(e) => setNote({ ...note, subjective: e.target.value, history_of_present_illness: e.target.value })}
+            className={`${inputClass} resize-none`}
+            placeholder="Patient reports symptoms, duration, triggers..."
+          />
+        </div>
+
+        {/* Objective (Physical Exam / Vitals) */}
+        <div className="group">
+          <label className={labelClass}>Objective (Physical Exam & Vitals)</label>
+          <textarea
+            rows={2}
+            value={note.objective}
+            onChange={(e) => setNote({ ...note, objective: e.target.value })}
+            className={`${inputClass} resize-none`}
+            placeholder="BP: 120/80, Temp: 98.6°F, HR: 72 bpm. Exam findings..."
+          />
+        </div>
+
+        {/* Assessment Section (High Clinical Emphasis) */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-teal-50/50 border border-emerald-200/80 shadow-sm space-y-2">
+          <label className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider">
+            Assessment & Clinical Diagnosis
+          </label>
+          <textarea
+            rows={2}
+            value={note.assessment}
+            onChange={(e) => setNote({ ...note, assessment: e.target.value })}
+            className={`${inputClass} !bg-white border-emerald-200 focus:ring-emerald-500 font-bold text-emerald-950 resize-none`}
+            placeholder="e.g., 1. Acute Tension Headache 2. Mild Low-Grade Pyrexia"
+          />
+        </div>
+
+        {/* Medications Table */}
+        <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Prescriptions (Medications)</label>
+            <button onClick={addMedication} className="text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1 font-bold transition-colors cursor-pointer">
+              <Plus className="w-3.5 h-3.5" /> Add Rx
+            </button>
+          </div>
+          <div className="space-y-2">
+            {note.medications?.map((med, idx) => (
+              <div key={idx} className="flex items-center gap-2 group/rx">
+                <GripVertical className="w-4 h-4 text-gray-300 shrink-0" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
+                  <input placeholder="Medication" value={med.name} onChange={(e) => handleMedChange(idx, "name", e.target.value)} className={`${inputClass} !p-2 !text-xs`} />
+                  <input placeholder="Dose (650mg)" value={med.dosage} onChange={(e) => handleMedChange(idx, "dosage", e.target.value)} className={`${inputClass} !p-2 !text-xs`} />
+                  <input placeholder="Freq (TID PRN)" value={med.frequency} onChange={(e) => handleMedChange(idx, "frequency", e.target.value)} className={`${inputClass} !p-2 !text-xs`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Plan Section (High Clinical Emphasis) */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 to-blue-50/50 border border-indigo-200/80 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">
+              Treatment Plan & Instructions
+            </label>
+            <button onClick={addPlanItem} className="text-xs text-indigo-700 hover:text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-2.5 py-1 rounded-lg flex items-center gap-1 font-bold transition-colors cursor-pointer">
+              <Plus className="w-3.5 h-3.5" /> Add Plan Step
+            </button>
+          </div>
+          <div className="space-y-2">
+            {note.plan?.map((step, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className="text-xs font-bold text-indigo-700 w-4">{idx + 1}.</span>
+                <input
+                  value={step}
+                  onChange={(e) => handlePlanChange(idx, e.target.value)}
+                  className={`${inputClass} !p-2.5 !text-xs border-indigo-200 focus:ring-indigo-500`}
+                  placeholder="Treatment recommendation..."
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Follow-up */}
+        <div className="group">
+          <label className={labelClass}>Follow-Up Plan</label>
+          <input
+            type="text"
+            value={note.follow_up}
+            onChange={(e) => setNote({ ...note, follow_up: e.target.value })}
+            className={inputClass}
+            placeholder="e.g., Return in 3-5 days or PRN if symptoms worsen"
+          />
+        </div>
       </div>
 
-      {/* Chief Complaint */}
-      <div>
-        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Chief Complaint</label>
-        <input
-          type="text"
-          value={note.chief_complaint}
-          onChange={(e) => setNote({ ...note, chief_complaint: e.target.value })}
-          className="w-full text-sm border rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
-        />
-      </div>
+      {/* Action Footer Bar */}
+      <div className="pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 shrink-0 bg-white">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportNote}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+            title="Download formatted text summary"
+          >
+            <Download className="w-4 h-4" /> Export .txt
+          </button>
 
-      {/* Subjective */}
-      <div>
-        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Subjective (HPI)</label>
-        <textarea
-          rows={3}
-          value={note.subjective || note.history_of_present_illness}
-          onChange={(e) => setNote({ ...note, subjective: e.target.value, history_of_present_illness: e.target.value })}
-          className="w-full text-sm border rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
-        />
-      </div>
-
-      {/* Assessment */}
-      <div>
-        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Assessment / Diagnosis</label>
-        <input
-          type="text"
-          value={note.assessment}
-          onChange={(e) => setNote({ ...note, assessment: e.target.value })}
-          className="w-full text-sm border rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
-        />
-      </div>
-
-      {/* Medications Table */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Prescribed Medications</label>
-          <button onClick={addMedication} className="text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1 font-medium">
-            <Plus className="w-3.5 h-3.5" /> Add Drug
+          <button
+            onClick={handleEraseRecord}
+            disabled={erasing}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+            title="Permanently purge under DPDP Act 2023"
+          >
+            <Trash2 className="w-4 h-4" /> Purge Record
           </button>
         </div>
-        <div className="space-y-2">
-          {note.medications?.map((med, idx) => (
-            <div key={idx} className="grid grid-cols-3 gap-2">
-              <input
-                placeholder="Medicine Name"
-                value={med.name}
-                onChange={(e) => handleMedChange(idx, "name", e.target.value)}
-                className="text-xs border rounded-md p-2"
-              />
-              <input
-                placeholder="Dosage (e.g., 500mg)"
-                value={med.dosage}
-                onChange={(e) => handleMedChange(idx, "dosage", e.target.value)}
-                className="text-xs border rounded-md p-2"
-              />
-              <input
-                placeholder="Frequency (e.g., BID)"
-                value={med.frequency}
-                onChange={(e) => handleMedChange(idx, "frequency", e.target.value)}
-                className="text-xs border rounded-md p-2"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Plan */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Treatment Plan & Advice</label>
-          <button onClick={addPlanItem} className="text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1 font-medium">
-            <Plus className="w-3.5 h-3.5" /> Add Step
-          </button>
-        </div>
-        <div className="space-y-1.5">
-          {note.plan?.map((step, idx) => (
-            <input
-              key={idx}
-              value={step}
-              onChange={(e) => handlePlanChange(idx, e.target.value)}
-              className="w-full text-xs border rounded-md p-2"
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="pt-4 border-t flex items-center justify-between gap-3">
-        <button
-          onClick={handleEraseRecord}
-          disabled={erasing}
-          className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition"
-        >
-          <Trash2 className="w-4 h-4" /> {erasing ? "Purging..." : "Erase (DPDP)"}
-        </button>
 
         <button
           onClick={handleSignOff}
-          disabled={saving}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md transition"
+          disabled={saving || isFinalized}
+          className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 shadow-md cursor-pointer ${
+            isFinalized
+              ? "bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-none cursor-default"
+              : "bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-emerald-500/25"
+          }`}
         >
-          <CheckCircle2 className="w-4 h-4" /> {saving ? "Saving..." : "Sign & Finalize Record"}
+          <CheckCircle2 className="w-4 h-4" />
+          {saving ? "Signing..." : isFinalized ? "Signed & Finalized" : "Sign & Finalize Record"}
         </button>
       </div>
     </div>

@@ -1,9 +1,18 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import Navbar from "@/components/Navbar";
+import { ToastProvider } from "@/components/Toast";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter", 
+});
+
+const outfit = Outfit({ 
+  subsets: ["latin"],
+  variable: "--font-outfit",
+});
 
 export const metadata: Metadata = {
   title: "Ambient Medical Scribe",
@@ -17,10 +26,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.className}>
-      <body className="antialiased">
-        <Navbar />
-        <main className="pt-16">{children}</main>
+    <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
+      <body className="antialiased min-h-screen bg-background font-sans text-foreground">
+        <ToastProvider>
+          <Navbar />
+          <main className="pt-24 pb-12 animate-fade-in-up">
+            {children}
+          </main>
+        </ToastProvider>
       </body>
     </html>
   );
