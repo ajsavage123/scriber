@@ -90,65 +90,65 @@ export default function SpeakerAmbientVisualizer({
       </div>
 
       {/* Floating HUD Badges & Indicators Layer (3D Glass Tiles) */}
-      <div className="relative z-10 p-4 sm:p-7 flex flex-col justify-between flex-1 h-full">
+      <div className="relative z-10 p-2.5 sm:p-5 flex flex-col justify-between flex-1 h-full">
         {/* Top Header Row */}
         <div className="flex items-center justify-between">
           {/* Clinician Badge (Left - 3D Soft Bevel) */}
-          <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border transition-all duration-300 backdrop-blur-xl shadow-lg ${
+          <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 backdrop-blur-xl shadow-md ${
             !isPaused && (activeSpeaker === "clinician" || activeSpeaker === "both")
-              ? "bg-emerald-500/25 text-emerald-300 border-emerald-400/60 shadow-[0_0_25px_rgba(16,185,129,0.4),inset_0_1px_1px_rgba(255,255,255,0.4)] scale-105"
+              ? "bg-emerald-500/25 text-emerald-300 border-emerald-400/60 shadow-[0_0_20px_rgba(16,185,129,0.35),inset_0_1px_1px_rgba(255,255,255,0.4)] scale-102"
               : "bg-slate-900/80 text-slate-400 border-slate-700/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] opacity-70"
           }`}>
-            <div className="w-7 h-7 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-inner">
-              <Stethoscope className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-inner">
+              <Stethoscope className="w-3.5 h-3.5" />
             </div>
             <div className="hidden sm:block">
-              <p className="text-xs font-bold leading-tight">Clinician</p>
-              <p className="text-[10px] text-emerald-400/80 font-medium">Speaker 0</p>
+              <p className="text-[11px] font-bold leading-tight">Clinician</p>
+              <p className="text-[9px] text-emerald-400/80 font-medium">Speaker 0</p>
             </div>
           </div>
 
           {/* Center Status Pill (3D Soft Bevel) */}
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold transition-all duration-300 backdrop-blur-xl shadow-lg ${status.pill} shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]`}>
-            <span className={`w-2 h-2 rounded-full ${status.dot}`} />
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition-all duration-300 backdrop-blur-xl shadow-md ${status.pill} shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
             <span>{status.label}</span>
           </div>
 
           {/* Patient Badge (Right - 3D Soft Bevel) */}
-          <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border transition-all duration-300 backdrop-blur-xl shadow-lg ${
+          <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all duration-300 backdrop-blur-xl shadow-md ${
             !isPaused && (activeSpeaker === "patient" || activeSpeaker === "both")
-              ? "bg-pink-500/25 text-pink-300 border-pink-400/60 shadow-[0_0_25px_rgba(236,72,153,0.4),inset_0_1px_1px_rgba(255,255,255,0.4)] scale-105"
+              ? "bg-pink-500/25 text-pink-300 border-pink-400/60 shadow-[0_0_20px_rgba(236,72,153,0.35),inset_0_1px_1px_rgba(255,255,255,0.4)] scale-102"
               : "bg-slate-900/80 text-slate-400 border-slate-700/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] opacity-70"
           }`}>
             <div className="hidden sm:block text-right">
-              <p className="text-xs font-bold leading-tight">Patient</p>
-              <p className="text-[10px] text-pink-400/80 font-medium">Speaker 1</p>
+              <p className="text-[11px] font-bold leading-tight">Patient</p>
+              <p className="text-[9px] text-pink-400/80 font-medium">Speaker 1</p>
             </div>
-            <div className="w-7 h-7 rounded-xl bg-pink-500/20 border border-pink-400/30 flex items-center justify-center text-pink-400 shadow-inner">
-              <User className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-pink-500/20 border border-pink-400/30 flex items-center justify-center text-pink-400 shadow-inner">
+              <User className="w-3.5 h-3.5" />
             </div>
           </div>
         </div>
 
         {/* Dynamic Center Zone */}
-        <div className="flex-1 min-h-[60px] pointer-events-none" />
+        <div className="flex-1 min-h-[40px] pointer-events-none" />
 
         {/* Bottom Actions & Indicator Section */}
-        <div className="space-y-4 pt-2 pb-6 sm:pb-8">
+        <div className="space-y-2 pt-1 pb-1 sm:pb-2">
           {/* Action Button Controls (Embedded in Siri Studio) */}
           {children && (
-            <div className="flex items-center justify-center pb-2">
+            <div className="flex items-center justify-center pb-1">
               {children}
             </div>
           )}
 
           {/* Bottom Ambient Glow Bar Indicator */}
-          <div className="flex items-center justify-between text-xs font-mono text-slate-400/80 px-2 pt-3 border-t border-slate-800/60">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400/70 animate-pulse shadow-[0_0_8px_#06b6d4]"></span>
-              <span className="hidden sm:inline text-slate-400">Multi-Harmonic Real-Time Audio Engine</span>
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400/80 px-2 pt-2 border-t border-slate-800/60">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/70 animate-pulse shadow-[0_0_6px_#06b6d4]"></span>
+              <span className="hidden sm:inline text-slate-400">Multi-Harmonic Audio Engine</span>
             </div>
-            <div className="flex items-center gap-2 font-semibold text-slate-300">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-300">
               <span>{isRecording ? (!isPaused ? `${(audioLevel * 100).toFixed(0)}% Audio Energy` : "PAUSED") : "READY"}</span>
             </div>
           </div>

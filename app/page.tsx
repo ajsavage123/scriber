@@ -272,48 +272,37 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col px-2 sm:px-4 lg:px-6 max-w-[1900px] mx-auto min-h-0">
-      <div className="flex-1 flex flex-col space-y-2 sm:space-y-3 min-h-0">
+    <div className="w-full flex-1 flex flex-col px-1.5 sm:px-4 lg:px-6 max-w-[1900px] mx-auto min-h-0 h-full">
+      <div className="flex-1 flex flex-col space-y-1 sm:space-y-2 min-h-0 h-full">
         {/* Header Bar */}
         {activeConsultation ? (
-          <header className="flex items-center justify-between px-2 sm:px-0 py-1.5 sm:py-2">
+          <header className="flex items-center justify-between px-1 py-1 sm:py-1.5">
             <div className="hidden lg:block space-y-0.5">
-              <h1 className="text-2xl font-display font-bold text-gray-900 tracking-tight">
+              <h1 className="text-xl font-display font-bold text-gray-900 tracking-tight">
                 Live Consultation
               </h1>
             </div>
             
             {/* Patient ID Badge (3D Pill) */}
-            <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/95 border border-slate-200/90 shadow-md shadow-slate-900/5 transition-all ml-auto">
-              <div className="w-6 h-6 rounded-full bg-emerald-100/80 flex items-center justify-center border border-emerald-300/80 shadow-xs">
-                <span className="text-emerald-800 font-bold text-[10px]">PT</span>
+            <div className="flex items-center gap-2.5 px-3 py-1 rounded-full bg-white/95 border border-slate-200/90 shadow-sm shadow-slate-900/5 transition-all ml-auto">
+              <div className="w-5 h-5 rounded-full bg-emerald-100/80 flex items-center justify-center border border-emerald-300/80 shadow-xs">
+                <span className="text-emerald-800 font-bold text-[9px]">PT</span>
               </div>
               <div className="space-y-0">
-                <p className="text-[8px] uppercase font-bold text-gray-400 tracking-wider leading-none">Patient ID</p>
-                <p className="font-bold text-gray-900 text-xs font-mono">{activeConsultation.patient_synthetic_id}</p>
+                <p className="text-[7px] uppercase font-bold text-gray-400 tracking-wider leading-none">Patient ID</p>
+                <p className="font-bold text-gray-900 text-[11px] font-mono">{activeConsultation.patient_synthetic_id}</p>
               </div>
               {activeConsultation.status === "SIGNED" && (
-                <div className="ml-1 pl-2 border-l border-gray-200 flex items-center text-emerald-600">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                <div className="ml-1 pl-1.5 border-l border-gray-200 flex items-center text-emerald-600">
+                  <CheckCircle2 className="w-3 h-3" />
                 </div>
               )}
             </div>
           </header>
-        ) : (
-          <header className="hidden lg:flex items-center justify-between py-1">
-            <div className="space-y-0.5">
-              <h1 className="text-2xl font-display font-bold text-gray-900 tracking-tight">
-                Live Consultation
-              </h1>
-              <p className="text-gray-500 text-xs">
-                Real-time ambient clinical intelligence & instant SOAP notes.
-              </p>
-            </div>
-          </header>
-        )}
+        ) : null}
 
         {/* Audio Recording Section (3D Curved Window) */}
-        <section id="recorder-section" className="animate-fade-in-up flex-1 w-full flex flex-col min-h-0 h-full p-0.5 sm:p-1.5">
+        <section id="recorder-section" className="animate-fade-in-up flex-1 w-full flex flex-col min-h-0 h-full p-0 sm:p-0.5">
           <AudioRecorder 
             onSuccess={handleSuccess}
             language={selectedLanguage}
