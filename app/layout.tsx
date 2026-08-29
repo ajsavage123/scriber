@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import MobileFooterNav from "@/components/MobileFooterNav";
@@ -15,10 +15,26 @@ const outfit = Outfit({
   variable: "--font-outfit",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#020617",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
   title: "Ambient Medical Scribe",
   description: "Professional Ambient Clinical Intelligence Platform",
   keywords: "medical, AI, clinical documentation, ambient scribe, healthcare",
+  appleWebApp: {
+    capable: true,
+    title: "Scribe",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({

@@ -5,3 +5,8 @@ node_modules/
 .env.*.local
 !.env.local.example
 tsconfig.tsbuildinfo
+
+# PWA files
+**/public/sw.js
+**/public/workbox-*.js
+**/public/swe-worker-*.js
