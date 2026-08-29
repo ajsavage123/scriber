@@ -271,6 +271,8 @@ export default function AudioRecorder({ onSuccess, language = "multi", className
     addToast("warning", "Recording discarded", "The audio recording has been cancelled and deleted.");
   };
 
+  const lastUiUpdateRef = useRef(0);
+
   const visualizeAudio = () => {
     const analyser = analyserRef.current;
     if (!analyser) return;
@@ -292,7 +294,6 @@ export default function AudioRecorder({ onSuccess, language = "multi", className
       }
       const rms = Math.sqrt(sum / bufferLength);
       const level = Math.min(rms * 4, 1);
-      setAudioLevel(level);
 
       // 2. Real-Time Vocal Pitch / Spectral Centroid calculation
       let weightedSum = 0;
@@ -304,31 +305,36 @@ export default function AudioRecorder({ onSuccess, language = "multi", className
       }
       const centroid = totalFreqSum > 0 ? weightedSum / totalFreqSum : 0;
       const computedPitch = Math.max(0.1, Math.min(1.0, (centroid - 3) / 36));
-      setPitch(computedPitch);
-
-      // 3. 8-Band Frequency Spectrum
-      const bands: number[] = [];
-      const bandSize = Math.max(1, Math.floor(bufferLength / 8));
-      for (let b = 0; b < 8; b++) {
-        let bSum = 0;
-        for (let i = b * bandSize; i < (b + 1) * bandSize && i < bufferLength; i++) {
-          bSum += freqArray[i];
-        }
-        bands.push(bSum / (bandSize * 255));
-      }
-      setFrequencies(bands);
 
       // Intelligent speaker turn switching based on silence detection
-      // Increased threshold to 0.06 to account for typical background noise
       if (level < 0.06) {
         silenceCounterRef.current += 1;
       } else {
-        // If silence of more than ~0.75s (~45 animation frames at 60fps) occurs,
-        // switch speakers when speech energy resumes.
         if (silenceCounterRef.current > 45) {
           setLiveSpeaker(prev => (prev === "clinician" ? "patient" : "clinician"));
         }
-        silenceCounterRef.current = 0; // Reset silence timer
+        silenceCounterRef.current = 0;
+      }
+
+      // Throttle React state reconciliation to ~25fps (every 40ms)
+      // This prevents mobile CPU throttling while keeping the canvas animation butter-smooth
+      const now = performance.now();
+      if (now - lastUiUpdateRef.current >= 40) {
+        lastUiUpdateRef.current = now;
+        setAudioLevel(level);
+        setPitch(computedPitch);
+
+        // 8-Band Frequency Spectrum
+        const bands: number[] = [];
+        const bandSize = Math.max(1, Math.floor(bufferLength / 8));
+        for (let b = 0; b < 8; b++) {
+          let bSum = 0;
+          for (let i = b * bandSize; i < (b + 1) * bandSize && i < bufferLength; i++) {
+            bSum += freqArray[i];
+          }
+          bands.push(bSum / (bandSize * 255));
+        }
+        setFrequencies(bands);
       }
     };
     
