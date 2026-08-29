@@ -227,7 +227,7 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pb-16 w-full overflow-hidden">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pb-32 sm:pb-24 w-full">
       <div className="space-y-6 animate-fade-in-up">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200/80 pb-5 mt-2">
