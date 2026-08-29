@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Mic, Square, Loader2, Sparkles, ChevronDown, CheckCircle2, AlertTriangle, Zap, FileText, Database, Pause, Play, Shield, ToggleLeft, ToggleRight, Sliders, Settings2 } from "lucide-react";
+import { Mic, Square, Loader2, Sparkles, ChevronDown, CheckCircle2, AlertTriangle, Zap, FileText, Database, Pause, Play, Shield, ToggleLeft, ToggleRight, Sliders, Settings2, Trash2, Download, RefreshCw, X, Check } from "lucide-react";
 import ConsentModal from "./ConsentModal";
 import { generateSyntheticPatientId } from "@/lib/piiScrubber";
 import { useToast } from "./Toast";
@@ -9,6 +9,7 @@ import { DemoScenario, DEMO_SCENARIOS, getSimulatedAudioState } from "@/lib/demo
 
 interface AudioRecorderProps {
   onSuccess: (consultation: any) => void;
+  language?: string;
   className?: string;
   onAudioStateChange?: (state: { activeSpeaker: ActiveSpeaker; audioLevel: number; isRecording: boolean; isPaused: boolean }) => void;
 }
@@ -22,32 +23,38 @@ const PIPELINE_STEPS = [
   { key: "done", label: "Complete", icon: CheckCircle2, description: "Consultation record is ready for review." },
 ];
 
-export default function AudioRecorder({ onSuccess, className, onAudioStateChange }: AudioRecorderProps) {
+export default function AudioRecorder({ onSuccess, language = "multi", className, onAudioStateChange }: AudioRecorderProps) {
   const [recording, setRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [pipelineStep, setPipelineStep] = useState<PipelineStep>("idle");
   const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [failedAudioBlob, setFailedAudioBlob] = useState<Blob | null>(null);
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [consentLang, setConsentLang] = useState<string | null>(null);
-  const [language, setLanguage] = useState("multi");
   const [audioLevel, setAudioLevel] = useState(0);
+  const [pitch, setPitch] = useState(0.4);
+  const [frequencies, setFrequencies] = useState<number[]>([]);
   const [duration, setDuration] = useState(0);
   const [showDevControls, setShowDevControls] = useState(false);
   
   // Zero-Token Demo Sandbox & Scenario Selection (Hydration-safe)
   const [mounted, setMounted] = useState(false);
   const [demoMode, setDemoMode] = useState<boolean>(false);
+  const [demoScenario, setDemoScenario] = useState<DemoScenario>("full_test");
 
   useEffect(() => {
     setMounted(true);
     if (typeof window !== "undefined") {
       setDemoMode(localStorage.getItem("demo_sandbox_mode") === "true");
+      const savedScenario = localStorage.getItem("demo_scenario");
+      if (savedScenario) setDemoScenario(savedScenario as DemoScenario);
     }
   }, []);
 
-  const [demoScenario, setDemoScenario] = useState<DemoScenario>("full_test");
-
   const { addToast } = useToast();
+
+  const [liveSpeaker, setLiveSpeaker] = useState<"clinician" | "patient">("clinician");
+  const silenceCounterRef = useRef(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -86,9 +93,17 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
     ? (isPaused ? 0 : simulatedState.audioLevel) 
     : audioLevel;
 
+  const currentPitch = demoMode
+    ? (isPaused ? 0.3 : simulatedState.pitch)
+    : pitch;
+
+  const currentFrequencies = demoMode
+    ? (isPaused ? [] : simulatedState.frequencies)
+    : frequencies;
+
   const currentActiveSpeaker: ActiveSpeaker = demoMode
     ? (isPaused ? "none" : simulatedState.activeSpeaker)
-    : (!recording || isPaused || audioLevel < 0.02 ? "none" : (audioLevel > 0.45 ? "both" : (duration % 8 < 4 ? "clinician" : "patient")));
+    : (!recording || isPaused || audioLevel < 0.025 ? "none" : (audioLevel > 0.45 ? "both" : liveSpeaker));
 
   const onAudioStateChangeRef = useRef(onAudioStateChange);
   useEffect(() => {
@@ -165,6 +180,8 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
       setDuration(0);
       setPipelineError(null);
       setPipelineStep("idle");
+      setLiveSpeaker("clinician");
+      silenceCounterRef.current = 0;
       
       addToast("info", demoMode ? "⚡ Demo Sandbox Started" : "Recording started", "0 tokens spent in Demo mode.");
 
@@ -202,10 +219,56 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
   };
 
   const stopRecording = () => {
+    if (isProcessing) return;
+    setPipelineStep("transcribing"); // Set step synchronously to disable all user controls immediately
     mediaRecorderRef.current?.stop();
     setRecording(false);
     setIsPaused(false);
     addToast("info", "Recording stopped", `Captured ${formatTime(duration)} of audio. Processing now...`);
+  };
+
+  const discardRecording = () => {
+    if (isProcessing) return;
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+      analyserRef.current = null;
+    }
+
+    if (mediaRecorderRef.current) {
+      const stream = mediaRecorderRef.current.stream;
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
+      mediaRecorderRef.current.onstop = null; // Clear handler to avoid processing
+      if (mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
+    }
+
+    audioChunksRef.current = [];
+    setRecording(false);
+    setIsPaused(false);
+    setDuration(0);
+    setAudioLevel(0);
+    setLiveSpeaker("clinician");
+    silenceCounterRef.current = 0;
+    
+    // Notify parent component of reset state
+    if (onAudioStateChangeRef.current) {
+      onAudioStateChangeRef.current({
+        activeSpeaker: "none",
+        audioLevel: 0,
+        isRecording: false,
+        isPaused: false,
+      });
+    }
+
+    addToast("warning", "Recording discarded", "The audio recording has been cancelled and deleted.");
   };
 
   const visualizeAudio = () => {
@@ -213,19 +276,60 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
     if (!analyser) return;
     
     const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    const timeArray = new Uint8Array(bufferLength);
+    const freqArray = new Uint8Array(bufferLength);
     
     const draw = () => {
       animationFrameRef.current = requestAnimationFrame(draw);
-      analyser.getByteTimeDomainData(dataArray);
+      analyser.getByteTimeDomainData(timeArray);
+      analyser.getByteFrequencyData(freqArray);
       
+      // 1. RMS Audio Level
       let sum = 0;
       for (let i = 0; i < bufferLength; i++) {
-        const value = dataArray[i] / 128 - 1;
+        const value = timeArray[i] / 128 - 1;
         sum += value * value;
       }
       const rms = Math.sqrt(sum / bufferLength);
-      setAudioLevel(Math.min(rms * 4, 1)); 
+      const level = Math.min(rms * 4, 1);
+      setAudioLevel(level);
+
+      // 2. Real-Time Vocal Pitch / Spectral Centroid calculation
+      let weightedSum = 0;
+      let totalFreqSum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const mag = freqArray[i];
+        weightedSum += i * mag;
+        totalFreqSum += mag;
+      }
+      const centroid = totalFreqSum > 0 ? weightedSum / totalFreqSum : 0;
+      const computedPitch = Math.max(0.1, Math.min(1.0, (centroid - 3) / 36));
+      setPitch(computedPitch);
+
+      // 3. 8-Band Frequency Spectrum
+      const bands: number[] = [];
+      const bandSize = Math.max(1, Math.floor(bufferLength / 8));
+      for (let b = 0; b < 8; b++) {
+        let bSum = 0;
+        for (let i = b * bandSize; i < (b + 1) * bandSize && i < bufferLength; i++) {
+          bSum += freqArray[i];
+        }
+        bands.push(bSum / (bandSize * 255));
+      }
+      setFrequencies(bands);
+
+      // Intelligent speaker turn switching based on silence detection
+      // Increased threshold to 0.06 to account for typical background noise
+      if (level < 0.06) {
+        silenceCounterRef.current += 1;
+      } else {
+        // If silence of more than ~0.75s (~45 animation frames at 60fps) occurs,
+        // switch speakers when speech energy resumes.
+        if (silenceCounterRef.current > 45) {
+          setLiveSpeaker(prev => (prev === "clinician" ? "patient" : "clinician"));
+        }
+        silenceCounterRef.current = 0; // Reset silence timer
+      }
     };
     
     draw();
@@ -233,6 +337,7 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
 
   const processPipeline = async (audioBlob: Blob) => {
     try {
+      const syntheticId = generateSyntheticPatientId();
       const savedSpecialty = (typeof window !== "undefined" && localStorage.getItem("medical_specialty")) || "General Practice";
 
       let sttData: any;
@@ -279,36 +384,73 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
           }
         };
       } else {
-        setPipelineStep("transcribing");
         const formData = new FormData();
-        formData.append("audio", audioBlob);
+        formData.append("audio", audioBlob, "recording.webm");
         formData.append("language", language);
 
-        const sttRes = await fetch("/api/transcribe", { method: "POST", body: formData });
-        sttData = await sttRes.json();
-        if (!sttRes.ok) {
-          throw new Error(sttData.error || "Speech-to-text failed. Deepgram could not process the audio.");
+        const transcribeRes = await fetch("/api/transcribe", {
+          method: "POST",
+          body: formData,
+        });
+
+        sttData = await transcribeRes.json();
+        if (!transcribeRes.ok) {
+          throw new Error(sttData.error || "Audio transcription failed.");
         }
-        addToast("success", "Transcription complete", `Detected ${sttData.utterances?.length || 0} speaker turns.`);
 
         setPipelineStep("generating");
-        const llmRes = await fetch("/api/summarize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            transcript: sttData.formattedTranscript,
-            specialty: savedSpecialty 
-          }),
-        });
-        llmData = await llmRes.json();
-        if (!llmRes.ok) {
-          throw new Error(llmData.error || "SOAP note generation failed. The AI could not process the transcript.");
+        try {
+          const summarizeRes = await fetch("/api/summarize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transcript: sttData.formattedTranscript,
+              specialty: savedSpecialty,
+            }),
+          });
+
+          llmData = await summarizeRes.json();
+          if (!summarizeRes.ok) {
+            console.warn("[Pipeline Notice] SOAP generation failed. Transcript preserved.", llmData.error);
+          }
+        } catch (sumErr: any) {
+          console.warn("[Pipeline Notice] SOAP summarize exception:", sumErr.message);
         }
-        addToast("success", "SOAP note generated", "AI has structured the clinical notes.");
       }
 
       setPipelineStep("saving");
-      const syntheticId = generateSyntheticPatientId();
+
+      let finalTranscript = sttData;
+      if (llmData && llmData.soapNote && typeof llmData.soapNote.diarized_transcript === "string" && llmData.soapNote.diarized_transcript.trim().length > 0) {
+        const reDiarizedLines = llmData.soapNote.diarized_transcript.trim().split("\n");
+        const resolvedUtterances: any[] = [];
+        
+        reDiarizedLines.forEach((line: string, idx: number) => {
+          const match = line.match(/^Speaker\s+([a-zA-Z0-9_-]+):\s*(.*)$/);
+          if (match) {
+            const spkNum = parseInt(match[1], 10);
+            const text = match[2].trim();
+            const orig = sttData.utterances && sttData.utterances[idx];
+            resolvedUtterances.push({
+              speaker: isNaN(spkNum) ? 0 : spkNum,
+              text: text,
+              start: orig?.start ?? (idx * 3),
+              end: orig?.end ?? ((idx + 1) * 3),
+              start_ms: orig?.start_ms ?? (idx * 3000),
+              end_ms: orig?.end_ms ?? ((idx + 1) * 3000)
+            });
+          }
+        });
+        
+        finalTranscript = {
+          formattedTranscript: llmData.soapNote.diarized_transcript,
+          utterances: resolvedUtterances
+        };
+      }
+
+      const isSoapGenerated = Boolean(llmData && llmData.soapNote);
+      const consultationStatus = isSoapGenerated ? "GENERATED" : "TRANSCRIBED";
+
       const saveRes = await fetch("/api/consultations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -317,40 +459,37 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
           specialty: savedSpecialty,
           selected_language: language,
           consent_obtained: true,
-          consent_language: consentLang,
           consent_timestamp: new Date().toISOString(),
-          diarized_transcript: sttData,
-          raw_ai_soap_note: llmData.soapNote,
-          final_approved_soap_note: llmData.soapNote,
-          status: "GENERATED",
+          diarized_transcript: finalTranscript,
+          raw_ai_soap_note: isSoapGenerated ? llmData.soapNote : undefined,
+          final_approved_soap_note: isSoapGenerated ? llmData.soapNote : undefined,
+          status: consultationStatus,
         }),
       });
 
       const saveData = await saveRes.json();
-      if (!saveRes.ok) {
-        throw new Error(saveData.error || "Failed to save the consultation record.");
-      }
+      if (!saveRes.ok) throw new Error(saveData.error || "Failed to save record.");
 
       setPipelineStep("done");
-      addToast("success", "Consultation ready!", `Patient ${syntheticId} — review the SOAP note below.`);
-      
       setTimeout(() => {
         setPipelineStep("idle");
         onSuccess(saveData.consultation);
-      }, 1000);
-      
+      }, 1500);
+
     } catch (err: any) {
       console.error(err);
+      setFailedAudioBlob(audioBlob);
       setPipelineError(err.message);
       setPipelineStep("error");
-      addToast("error", "Pipeline failed", err.message);
+      addToast("error", "Pipeline Failed", err.message);
     }
   };
 
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+    return `${h.toString().padStart(2, '0')}:${m}:${s}`;
   };
 
   const currentStepIndex = PIPELINE_STEPS.findIndex(s => s.key === pipelineStep);
@@ -364,188 +503,113 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
         />
       )}
 
-      <div className={`glass-card rounded-3xl overflow-hidden shadow-xl border border-slate-200/90 ${className || ""}`}>
-        {/* Studio Body */}
-        <div className="p-6 sm:p-8 space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div>
-                <h3 className="text-xl font-display font-bold text-slate-900">
-                  Ambient Scribe Studio
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                  {recording ? (isPaused ? "⏸️ Recording Paused" : "🔴 Live Clinical Listening...") : "Ready for patient encounter."}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {mounted && demoMode && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-xs font-mono font-bold shadow-xs">
-                  <Shield className="w-3.5 h-3.5 text-amber-600" />
-                  <span>DEMO</span>
-                </div>
-              )}
-
-              {/* Discrete Developer Controls Toggle Icon */}
-              <button
-                onClick={() => setShowDevControls(!showDevControls)}
-                className={`p-2.5 rounded-2xl transition-all cursor-pointer border ${
-                  showDevControls 
-                    ? "bg-slate-200/90 text-slate-900 border-slate-300 shadow-inner" 
-                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 border-slate-200/70 shadow-xs"
-                }`}
-                title="Developer & Testing Controls"
-              >
-                <Settings2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Collapsible Developer & Testing Drawer (Collapsed by default) */}
-          {showDevControls && (
-            <div className="p-4.5 bg-slate-50/90 rounded-2xl border border-slate-200/90 space-y-3 animate-fade-in-up shadow-inner">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                  <Sliders className="w-4 h-4 text-emerald-600" />
-                  <span>Developer & Testing Controls</span>
-                </div>
-
-                <button
-                  onClick={toggleDemoMode}
-                  className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold transition-all shadow-xs cursor-pointer ${
-                    demoMode 
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white border-orange-400" 
-                      : "bg-white text-slate-600 border-slate-200"
-                  }`}
-                >
-                  <span>{demoMode ? "⚡ Demo Sandbox (0 Tokens)" : "🌐 Live API Mode"}</span>
-                  {demoMode ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                </button>
-              </div>
-
-              {mounted && demoMode && (
-                <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Audio Simulation Scenarios</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {DEMO_SCENARIOS.map((sc) => (
-                      <button
-                        key={sc.key}
-                        onClick={() => setDemoScenario(sc.key)}
-                        className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                          demoScenario === sc.key 
-                            ? "bg-emerald-600 text-white border-emerald-700 font-bold shadow-xs" 
-                            : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200 font-medium"
-                        }`}
-                      >
-                        <p className="font-bold">{sc.label}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Central Hero Mobile Interaction: Speaker Visualizer + Main Recording Controls */}
-          <div className="space-y-5">
-            {/* Unified Speaker Ambient Visualizer Hero Section */}
-            <div className="rounded-2xl overflow-hidden shadow-md shadow-slate-900/5 border border-slate-200/90">
-              <SpeakerAmbientVisualizer
-                activeSpeaker={currentActiveSpeaker}
-                audioLevel={currentAudioLevel}
-                isRecording={recording}
-                isPaused={isPaused}
-              />
-            </div>
-
-            {/* Central Touch Interaction Bar (Language Selector + Primary Recording Controls) */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-1">
-              {/* Spoken Language Dropdown */}
-              <div className="w-full sm:w-64">
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Spoken Language</label>
-                <div className="relative">
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    disabled={recording || isProcessing}
-                    className="w-full appearance-none rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-transparent disabled:opacity-50 transition-all cursor-pointer shadow-xs"
-                  >
-                    <option value="multi">🌐 Auto-Detect (Code-Mixed)</option>
-                    <option value="en">English (en)</option>
-                    <option value="hi">हिन्दी (Hindi)</option>
-                    <option value="te">తెలుగు (Telugu)</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                    <ChevronDown className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Main Action Control Buttons */}
-              <div className="w-full sm:w-auto flex items-center justify-end">
-                {!recording ? (
-                  <button
-                    onClick={handleStartClick}
-                    disabled={isProcessing}
-                    className="w-full sm:w-64 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm uppercase tracking-wider btn-3d-emerald transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2.5 group"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Processing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Mic className="w-4 h-4 text-white" />
-                        </div>
-                        <span>Start Recording</span>
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                    {/* Active Timer Pill */}
-                    <div className="flex items-center gap-1.5 px-3.5 py-2.5 bg-red-50 text-red-600 rounded-2xl text-xs font-bold font-mono border border-red-200/80 shadow-xs">
-                      <span className={`w-2.5 h-2.5 rounded-full ${isPaused ? "bg-amber-500" : "bg-red-500 animate-pulse"}`}></span>
-                      {formatTime(duration)}
-                    </div>
-
-                    {/* Pause / Resume Button */}
-                    <button
-                      onClick={isPaused ? resumeRecording : pauseRecording}
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all duration-300 shadow-sm cursor-pointer border ${
-                        isPaused 
-                          ? "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-600/20" 
-                          : "bg-amber-500 hover:bg-amber-600 text-white border-amber-400 shadow-amber-500/20"
-                      }`}
-                    >
-                      {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-                      {isPaused ? "Resume" : "Pause"}
-                    </button>
-
-                    {/* Stop & Generate Button */}
-                    <button
-                      onClick={stopRecording}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-500 hover:to-rose-400 text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-md shadow-red-500/20 border border-red-500 transition-all duration-300 cursor-pointer"
-                    >
-                      <Square className="w-4 h-4" /> Stop & Generate
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+      <div className={`relative w-full h-full flex flex-col justify-between ${className || ""}`}>
+        {/* Floating 1-Tap Mode Switcher Pill */}
+        <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 rounded-full bg-slate-950/85 backdrop-blur-xl border border-slate-700/80 shadow-[0_4px_18px_rgba(0,0,0,0.5)] select-none">
+          <button
+            type="button"
+            onClick={() => {
+              if (demoMode) toggleDemoMode();
+            }}
+            disabled={recording}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+              !demoMode
+                ? "bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            🌐 Live API
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!demoMode) toggleDemoMode();
+            }}
+            disabled={recording}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+              demoMode
+                ? "bg-amber-500 text-slate-950 shadow-[0_0_12px_rgba(245,158,11,0.5)] font-bold"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            ⚡ Demo (0 Tokens)
+          </button>
         </div>
 
-        {/* Pipeline Progress Bar */}
+        {recording && !isPaused && (
+          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-3xl blur-xl pointer-events-none -z-10 animate-pulse"></div>
+        )}
+
+        <SpeakerAmbientVisualizer
+          activeSpeaker={currentActiveSpeaker}
+          audioLevel={currentAudioLevel}
+          pitch={currentPitch}
+          frequencies={currentFrequencies}
+          isRecording={recording}
+          isPaused={isPaused}
+          className="flex-1 w-full h-full min-h-0"
+        >
+          {!recording ? (
+            <button
+              onClick={handleStartClick}
+              disabled={isProcessing}
+              className="group p-3 flex items-center justify-center text-white hover:text-white/80 transition-transform duration-200 active:scale-90 cursor-pointer disabled:opacity-50"
+              title="Start Recording"
+            >
+              {isProcessing ? (
+                <Loader2 className="w-8 h-8 sm:w-9 sm:h-9 animate-spin text-white" />
+              ) : (
+                <Mic className="w-8 h-8 sm:w-9 sm:h-9 text-white group-hover:scale-110 transition-transform duration-200" />
+              )}
+            </button>
+          ) : (
+            <div className="flex flex-col items-center gap-4 w-full animate-fade-in-up">
+              {/* Digital Timer matching reference */}
+              <div className="text-3xl sm:text-4xl font-mono font-bold tracking-widest text-white drop-shadow-md select-none">
+                {formatTime(duration)}
+              </div>
+
+              {/* 3-Button Control Dock matching reference picture */}
+              <div className="flex items-center justify-center gap-5 sm:gap-8">
+                {/* 1. Discard (✕) */}
+                <button
+                  onClick={discardRecording}
+                  disabled={isProcessing}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 hover:text-red-400 border border-slate-700/80 hover:border-red-500/50 shadow-lg flex items-center justify-center transition-all duration-200 active:scale-90 cursor-pointer disabled:opacity-50 backdrop-blur-md"
+                  title="Discard Recording"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+                </button>
+
+                {/* 2. Main Circle: Pause / Resume Button */}
+                <button
+                  onClick={isPaused ? resumeRecording : pauseRecording}
+                  disabled={isProcessing}
+                  className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] sm:text-xs uppercase tracking-wider shadow-[0_0_30px_rgba(37,99,235,0.6)] hover:shadow-[0_0_45px_rgba(37,99,235,0.85)] border-2 border-blue-400/40 flex items-center justify-center transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50 select-none"
+                  title={isPaused ? "Resume Recording" : "Pause Recording"}
+                >
+                  {isPaused ? <span>RESUME</span> : <span>PAUSE</span>}
+                </button>
+
+                {/* 3. OK / Save / Generate (✓) */}
+                <button
+                  onClick={stopRecording}
+                  disabled={isProcessing}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 hover:text-emerald-400 border border-slate-700/80 hover:border-emerald-500/50 shadow-lg flex items-center justify-center transition-all duration-200 active:scale-90 cursor-pointer disabled:opacity-50 backdrop-blur-md"
+                  title="Finish & Generate SOAP"
+                >
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+                </button>
+              </div>
+            </div>
+          )}
+        </SpeakerAmbientVisualizer>
+
         {isProcessing && (
-          <div className="border-t border-gray-100 bg-gray-50/60 px-8 py-6 animate-fade-in-up">
+          <div className="border-t border-slate-800/80 bg-slate-900/60 px-8 py-6 animate-fade-in-up backdrop-blur-md">
             <div className="flex items-center gap-2 mb-4">
-              <Zap className="w-4 h-4 text-emerald-500" />
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">AI Processing Pipeline</span>
+              <Zap className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI Processing Pipeline</span>
             </div>
             <div className="flex items-center gap-0">
               {PIPELINE_STEPS.map((step, idx) => {
@@ -557,20 +621,20 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
                   <React.Fragment key={step.key}>
                     <div className="flex flex-col items-center gap-2 flex-1">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                        isComplete ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" 
-                        : isActive ? "bg-emerald-100 text-emerald-600 ring-2 ring-emerald-500 ring-offset-2" 
-                        : "bg-gray-100 text-gray-400"
+                        isComplete ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
+                        : isActive ? "bg-cyan-500/20 text-cyan-300 ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900" 
+                        : "bg-slate-800 text-slate-500"
                       }`}>
                         {isComplete ? <CheckCircle2 className="w-5 h-5" /> 
                         : isActive ? <Loader2 className="w-5 h-5 animate-spin" /> 
                         : <StepIcon className="w-5 h-5" />}
                       </div>
                       <div className="text-center">
-                        <p className={`text-xs font-bold ${isActive ? "text-emerald-700" : isComplete ? "text-emerald-600" : "text-gray-400"}`}>
+                        <p className={`text-xs font-bold ${isActive ? "text-cyan-300" : isComplete ? "text-cyan-400" : "text-slate-500"}`}>
                           {step.label}
                         </p>
                         {isActive && (
-                          <p className="text-[10px] text-gray-500 mt-0.5 max-w-[140px] leading-tight">
+                          <p className="text-[10px] text-slate-400 mt-0.5 max-w-[140px] leading-tight">
                             {step.description}
                           </p>
                         )}
@@ -578,7 +642,7 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
                     </div>
                     {idx < PIPELINE_STEPS.length - 1 && (
                       <div className={`h-0.5 flex-1 mx-1 rounded-full transition-all duration-500 ${
-                        isComplete || (currentStepIndex > idx) ? "bg-emerald-500" : "bg-gray-200"
+                        isComplete || (currentStepIndex > idx) ? "bg-cyan-500 shadow-[0_0_8px_#06b6d4]" : "bg-slate-800"
                       }`} />
                     )}
                   </React.Fragment>
@@ -588,23 +652,59 @@ export default function AudioRecorder({ onSuccess, className, onAudioStateChange
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error State with Audio Blob Rescue */}
         {pipelineStep === "error" && pipelineError && (
-          <div className="border-t border-red-100 bg-red-50/60 px-8 py-5 animate-fade-in-up">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+          <div className="border-t border-red-900/50 bg-red-950/30 px-6 sm:px-8 py-5 animate-fade-in-up backdrop-blur-md">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-500/20 flex items-center justify-center shrink-0 border border-red-500/30">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-red-300">Processing Interrupted</p>
+                  <p className="text-xs text-red-400/90 mt-0.5 leading-relaxed max-w-xl">{pipelineError}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-red-800">Something went wrong</p>
-                <p className="text-xs text-red-600 mt-1 leading-relaxed">{pipelineError}</p>
+              
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {failedAudioBlob && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const url = URL.createObjectURL(failedAudioBlob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `consultation_audio_rescue_${Date.now()}.webm`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        addToast("info", "Audio Downloaded", "Preserved audio file saved to your device.");
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all shadow-xs cursor-pointer"
+                      title="Download recorded audio to prevent loss"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-300" />
+                      Download Audio (.webm)
+                    </button>
+
+                    <button
+                      onClick={() => processPipeline(failedAudioBlob)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 rounded-xl transition-all shadow-xs cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Retry Transcription
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={handleStartClick}
+                  className="px-3.5 py-2 text-xs font-bold text-red-300 bg-red-900/40 hover:bg-red-900/60 rounded-xl transition-colors shrink-0 cursor-pointer"
+                >
+                  New Recording
+                </button>
               </div>
-              <button
-                onClick={handleStartClick}
-                className="text-xs font-bold text-red-700 bg-red-100 hover:bg-red-200 px-4 py-2 rounded-lg transition-colors shrink-0 cursor-pointer"
-              >
-                Try Again
-              </button>
             </div>
           </div>
         )}

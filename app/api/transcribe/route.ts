@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       "fever:5", "symptoms:5", "duration:5", "mg:5", "dosage:5"
     ].join("&keyterm=");
 
-    const deepgramUrl = `https://api.deepgram.com/v1/listen?model=nova-3&diarize=true&utterances=true&punctuate=true&smart_format=true&filler_words=false&language=${encodeURIComponent(language)}&keyterm=${keyterms}`;
+    const deepgramUrl = `https://api.deepgram.com/v1/listen?model=nova-3&diarize=true&utterances=true&utt_split=0.6&punctuate=true&smart_format=true&filler_words=false&language=${encodeURIComponent(language)}&keyterm=${keyterms}`;
 
     const response = await fetch(deepgramUrl, {
       method: "POST",
@@ -39,10 +39,71 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     let utterances = data.results?.utterances?.map((u: any) => ({
       speaker: u.speaker,
+      raw_speaker_id: `Speaker ${u.speaker}`,
       text: u.transcript,
       start: u.start,
       end: u.end,
+      start_ms: Math.round(u.start * 1000),
+      end_ms: Math.round(u.end * 1000)
     })) || [];
+
+    // Inspect granular word-level diarization to recover speaker switches missed by coarse utterance chunking
+    const words = data.results?.channels?.[0]?.alternatives?.[0]?.words || [];
+    if (words.length > 0) {
+      const distinctWordSpeakers = new Set(words.map((w: any) => w.speaker).filter((s: any) => typeof s === "number"));
+      const distinctUtteranceSpeakers = new Set(utterances.map((u: any) => u.speaker));
+      
+      // If words array detected multiple distinct speakers while utterances only had 1, reconstruct from word boundaries
+      if (distinctWordSpeakers.size > distinctUtteranceSpeakers.size) {
+        const reconstructedUtterances: any[] = [];
+        let currentSpeaker: number | null = null;
+        let currentWords: string[] = [];
+        let currentStart = 0;
+        let currentEnd = 0;
+
+        for (const w of words) {
+          const spk = typeof w.speaker === "number" ? w.speaker : 0;
+          const wordText = w.punctuated_word || w.word || "";
+          if (currentSpeaker === null) {
+            currentSpeaker = spk;
+            currentStart = w.start || 0;
+            currentEnd = w.end || 0;
+            currentWords = [wordText];
+          } else if (currentSpeaker === spk) {
+            currentWords.push(wordText);
+            currentEnd = w.end || currentEnd;
+          } else {
+            reconstructedUtterances.push({
+              speaker: currentSpeaker,
+              raw_speaker_id: `Speaker ${currentSpeaker}`,
+              text: currentWords.join(" "),
+              start: currentStart,
+              end: currentEnd,
+              start_ms: Math.round(currentStart * 1000),
+              end_ms: Math.round(currentEnd * 1000)
+            });
+            currentSpeaker = spk;
+            currentStart = w.start || 0;
+            currentEnd = w.end || 0;
+            currentWords = [wordText];
+          }
+        }
+        if (currentWords.length > 0 && currentSpeaker !== null) {
+          reconstructedUtterances.push({
+            speaker: currentSpeaker,
+            raw_speaker_id: `Speaker ${currentSpeaker}`,
+            text: currentWords.join(" "),
+            start: currentStart,
+            end: currentEnd,
+            start_ms: Math.round(currentStart * 1000),
+            end_ms: Math.round(currentEnd * 1000)
+          });
+        }
+        if (reconstructedUtterances.length > 0) {
+          utterances = reconstructedUtterances;
+        }
+      }
+    }
 
     let formattedTranscript = utterances.length > 0
       ? utterances.map((u: any) => `Speaker ${u.speaker}: ${u.text}`).join("\n")
@@ -52,21 +113,19 @@ export async function POST(req: NextRequest) {
     if (utterances.length === 0 && formattedTranscript) {
       utterances = [{
         speaker: 0,
+        raw_speaker_id: "Speaker 0",
         text: formattedTranscript,
         start: 0,
-        end: 5
+        end: 5,
+        start_ms: 0,
+        end_ms: 5000
       }];
       formattedTranscript = `Speaker 0: ${formattedTranscript}`;
     }
 
-    // Fallback for short test recordings where no speech was detected by STT
+    // If no speech was detected by STT in Live Mode, return a clear error instead of fabricating mock dialogue.
     if (!formattedTranscript) {
-      console.warn("[Transcribe] Short/Empty audio test detected. Using sample consultation dialogue.");
-      utterances = [
-        { speaker: 0, text: "Good morning, what symptoms are you experiencing today?", start: 0.5, end: 3.5 },
-        { speaker: 1, text: "Doctor, I have had a severe headache and neck stiffness for 3 days.", start: 4.0, end: 7.5 }
-      ];
-      formattedTranscript = "Speaker 0: Good morning, what symptoms are you experiencing today?\nSpeaker 1: Doctor, I have had a severe headache and neck stiffness for 3 days.";
+      return NextResponse.json({ error: "No voice or speech detected in the recording. Please check your microphone, speak clearly, and try again." }, { status: 400 });
     }
 
     return NextResponse.json({ formattedTranscript, utterances });

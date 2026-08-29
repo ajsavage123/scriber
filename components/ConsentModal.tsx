@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { ShieldCheck, Globe, Check, X } from "lucide-react";
+import { ShieldCheck, Check, X } from "lucide-react";
 
 interface ConsentModalProps {
   onConsent: (lang: string) => void;
@@ -12,102 +12,102 @@ export default function ConsentModal({ onConsent, onCancel }: ConsentModalProps)
 
   const consentTexts = {
     en: {
-      title: "Patient Consent for AI Medical Documentation",
-      body: "This consultation is being audio-recorded to assist the physician in generating clinical medical records via AI. Personal identity details (name, phone, IDs) are stripped before processing. You have the right to request deletion of this record at any time under the DPDP Act 2023.",
-      agree: "I Consent & Agree",
+      title: "Patient Consent for AI Documentation",
+      body: "This consultation is audio-recorded to assist the clinician in generating medical notes via AI. Personal identity details are scrubbed prior to processing. You may request deletion under the DPDP Act 2023.",
+      agree: "Consent & Proceed",
       cancel: "Decline"
     },
     hi: {
       title: "एआई मेडिकल दस्तावेज़ के लिए मरीज़ की सहमति",
-      body: "इस परामर्श को एआई के माध्यम से मेडिकल रिकॉर्ड तैयार करने के लिए रिकॉर्ड किया जा रहा है। प्रसंस्करण से पहले व्यक्तिगत पहचान हटा दी जाती है। आपको डीपीडीपी अधिनियम 2023 के तहत किसी भी समय इसे हटाने का अनुरोध करने का अधिकार है।",
-      agree: "मैं सहमत हूँ",
-      cancel: "अस्वीकार करें"
+      body: "इस परामर्श को एआई के माध्यम से मेडिकल रिकॉर्ड तैयार करने के लिए रिकॉर्ड किया जा रहा है। व्यक्तिगत पहचान हटा दी जाती है। आपको डीपीडीपी अधिनियम 2023 के तहत इसे हटाने का अधिकार है।",
+      agree: "सहमत हूँ",
+      cancel: "अस्वीकार"
     },
     te: {
       title: "AI మెడికల్ రికార్డ్ తయారీకి రోగి సమ్మతి",
-      body: "AI ద్వారా వైద్య రికార్డులను రూపొందించడానికి ఈ సంభాషణ రికార్డ్ చేయబడుతోంది. మీ వ్యక్తిగత గుర్తింపు వివరాలు భద్రపరచబడతాయి. DPDP చట్టం 2023 ప్రకారం ఈ రికార్డును తొలగించమని కోరే హక్కు మీకు ఉంది.",
-      agree: "నేను అంగీకరిస్తున్నాను",
-      cancel: "రద్దు చేయండి"
+      body: "AI ద్వారా వైద్య రికార్డులను రూపొందించడానికి ఈ సంభాషణ రికార్డ్ చేయబడుతోంది. మీ వ్యక్తిగత వివరాలు భద్రపరచబడతాయి. DPDP చట్టం 2023 ప్రకారం దీనిని తొలగించమని కోరవచ్చు.",
+      agree: "అంగీకరిస్తున్నాను",
+      cancel: "రద్దు"
     }
   };
 
   const current = consentTexts[lang];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
       {/* Glassmorphic Backdrop */}
       <div 
-        className="absolute inset-0 bg-gray-900/40 backdrop-blur-md animate-fade-in-up" 
-        style={{ animationDuration: '300ms' }}
+        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md animate-fade-in-up" 
+        style={{ animationDuration: '200ms' }}
         onClick={onCancel}
       ></div>
       
-      {/* Modal Content */}
+      {/* Modal Card with Soft Rounded Curves */}
       <div 
-        className="relative w-full max-w-xl glass-card rounded-3xl p-6 sm:p-8 animate-fade-in-up shadow-2xl overflow-hidden"
-        style={{ animationDelay: '100ms' }}
+        className="relative w-full max-w-md bg-white rounded-[32px] p-5 sm:p-7 animate-fade-in-up shadow-2xl overflow-hidden border border-slate-200/90 max-h-[92vh] flex flex-col justify-between"
       >
         {/* Decorative Top Accent */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500"></div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-gray-900 font-bold font-display leading-tight">DPDP Statutory Notice</h3>
-              <p className="text-xs text-gray-500 font-medium">Digital Personal Data Protection Act</p>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">DPDP Statutory Notice</h3>
+              <p className="text-[10px] text-slate-400 font-medium">Digital Personal Data Protection</p>
             </div>
           </div>
           
-          <div className="flex gap-1 bg-gray-100/80 p-1 rounded-xl self-start sm:self-auto">
+          {/* Language Selector Tabs (Soft Pill) */}
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-full shrink-0 border border-slate-200/60">
             {(["en", "hi", "te"] as const).map((l) => (
               <button
                 key={l}
                 onClick={() => setLang(l)}
-                className={`relative px-3 py-1.5 text-xs rounded-lg font-bold uppercase tracking-wider transition-all duration-300 ${
+                className={`px-2.5 py-1 text-[11px] rounded-full font-bold uppercase transition-all cursor-pointer ${
                   lang === l 
-                    ? "text-gray-900 shadow-sm" 
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/60" 
+                    : "text-slate-500 hover:text-slate-700"
                 }`}
               >
-                {lang === l && (
-                  <div className="absolute inset-0 bg-white rounded-lg shadow-sm -z-10"></div>
-                )}
                 {l}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="py-8 space-y-4">
-          <h2 className="text-xl sm:text-2xl font-display font-bold text-gray-900 leading-tight">
+        {/* Body */}
+        <div className="py-4 space-y-3 overflow-y-auto">
+          <h2 className="text-sm sm:text-base font-display font-bold text-slate-900 leading-snug">
             {current.title}
           </h2>
-          <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
             {current.body}
           </p>
           
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mt-6">
-            <p className="text-amber-800 text-xs font-semibold flex items-start gap-2">
-              <span className="text-amber-600 mt-0.5">ℹ️</span>
-              By proceeding, you consent to the processing of voice data to text for the sole purpose of clinical documentation generation.
+          <div className="bg-emerald-50/80 border border-emerald-100/90 rounded-2xl p-3 mt-1 shadow-xs">
+            <p className="text-emerald-800 text-[11px] font-medium leading-snug flex items-start gap-2">
+              <span className="text-emerald-600 shrink-0 mt-0.5">🔒</span>
+              <span>Audio is processed strictly for note generation. Personal identifiers (PII) are scrubbed.</span>
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-100">
+        {/* Action Buttons (Soft Curved Pills) */}
+        <div className="flex items-center gap-3 pt-3.5 border-t border-slate-100 shrink-0">
           <button
             onClick={onCancel}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm"
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 border border-slate-200 text-slate-700 font-bold rounded-full hover:bg-slate-50 transition-all text-xs cursor-pointer shadow-xs"
           >
             <X className="w-4 h-4" />
             {current.cancel}
           </button>
           <button
             onClick={() => onConsent(lang)}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 text-sm"
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold rounded-full shadow-md shadow-emerald-500/20 transition-all text-xs cursor-pointer"
           >
             <Check className="w-4 h-4" />
             {current.agree}

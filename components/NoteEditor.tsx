@@ -1,16 +1,35 @@
 "use client";
 import React, { useState } from "react";
 import { SOAPNote } from "@/lib/types";
-import { CheckCircle2, Trash2, Plus, GripVertical, Download, AlertTriangle, Stethoscope, ClipboardList } from "lucide-react";
+import { CheckCircle2, Trash2, Plus, GripVertical, Download, AlertTriangle, Stethoscope, ClipboardList, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 
 interface NoteEditorProps {
-  initialNote: SOAPNote;
+  initialNote?: SOAPNote;
   onSave: (finalNote: SOAPNote) => Promise<void>;
   onErase: () => Promise<void>;
+  onRetrySoap?: () => Promise<void>;
+  onRemapRoles?: () => Promise<void>;
+  onRegenerateSoap?: () => Promise<void>;
+  isPendingSoap?: boolean;
+  isRetrying?: boolean;
+  isRemapping?: boolean;
   isFinalized?: boolean;
+  hasSpeakerCorrection?: boolean;
 }
 
-export default function NoteEditor({ initialNote, onSave, onErase, isFinalized = false }: NoteEditorProps) {
+export default function NoteEditor({
+  initialNote,
+  onSave,
+  onErase,
+  onRetrySoap,
+  onRemapRoles,
+  onRegenerateSoap,
+  isPendingSoap = false,
+  isRetrying = false,
+  isRemapping = false,
+  isFinalized = false,
+  hasSpeakerCorrection = false
+}: NoteEditorProps) {
   const [note, setNote] = useState<SOAPNote>({
     chief_complaint: initialNote?.chief_complaint || "",
     history_of_present_illness: initialNote?.history_of_present_illness || "",
@@ -23,6 +42,8 @@ export default function NoteEditor({ initialNote, onSave, onErase, isFinalized =
     follow_up: initialNote?.follow_up || "",
     doctor_speaker_id: initialNote?.doctor_speaker_id || "Speaker 0",
     patient_speaker_id: initialNote?.patient_speaker_id || "Speaker 1",
+    needs_review: initialNote?.needs_review || false,
+    speaker_roles: initialNote?.speaker_roles || {},
   });
   const [saving, setSaving] = useState(false);
   const [erasing, setErasing] = useState(false);
@@ -41,6 +62,8 @@ export default function NoteEditor({ initialNote, onSave, onErase, isFinalized =
         follow_up: initialNote.follow_up || "",
         doctor_speaker_id: initialNote.doctor_speaker_id || "Speaker 0",
         patient_speaker_id: initialNote.patient_speaker_id || "Speaker 1",
+        needs_review: initialNote.needs_review || false,
+        speaker_roles: initialNote.speaker_roles || {},
       });
     }
   }, [initialNote]);
@@ -139,6 +162,86 @@ ${note.follow_up}
       {/* Scrollable Clinical Note Form Fields */}
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 pb-6">
         
+        {/* Pending / Failed SOAP Generation Alert Banner */}
+        {isPendingSoap && onRetrySoap && (
+          <div className="p-4.5 bg-gradient-to-r from-amber-50 to-orange-50/70 border border-amber-300/80 rounded-2xl space-y-3 shadow-xs animate-fade-in-up">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-100/90 text-amber-800 rounded-xl mt-0.5">
+                <AlertTriangle className="w-5 h-5 text-amber-700" />
+              </div>
+              <div className="space-y-1 flex-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                  SOAP Generation Interrupted — Transcript Safe
+                </h4>
+                <p className="text-xs text-amber-800/90 leading-relaxed">
+                  The consultation speech was transcribed and preserved in EHR records. You can generate the clinical SOAP note now without re-recording.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-1 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onRetrySoap}
+                disabled={isRetrying}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isRetrying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Generating SOAP Note...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Retry SOAP Generation</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Speaker Roles Need Review Alert Banner */}
+        {note.needs_review && onRemapRoles && (
+          <div className="p-4.5 bg-gradient-to-r from-amber-50 to-orange-50/70 border border-amber-300/80 rounded-2xl space-y-3 shadow-xs animate-fade-in-up">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-100/90 text-amber-800 rounded-xl mt-0.5 animate-pulse">
+                <AlertTriangle className="w-5 h-5 text-amber-700" />
+              </div>
+              <div className="space-y-1 flex-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                  Speaker roles need confirmation
+                </h4>
+                <p className="text-xs text-amber-800/90 leading-relaxed">
+                  Speaker identification is uncertain. Please review the speaker labels in the transcript before finalizing the note.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-1 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onRemapRoles}
+                disabled={isRemapping}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isRemapping ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Remapping Speaker Roles...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Remap Speaker Roles</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Chief Complaint */}
         <div className="group">
           <label className={labelClass}>Chief Complaint</label>
@@ -294,6 +397,27 @@ ${note.follow_up}
           >
             <Trash2 className="w-4 h-4" /> Purge Record
           </button>
+
+          {hasSpeakerCorrection && onRegenerateSoap && (
+            <button
+              onClick={onRegenerateSoap}
+              disabled={isRetrying}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+              title="Regenerate clinical note using corrected speaker roles"
+            >
+              {isRetrying ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Regenerating...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Regenerate SOAP</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <button

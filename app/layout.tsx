@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import Navbar from "@/components/Navbar";
+import MobileFooterNav from "@/components/MobileFooterNav";
 import { ToastProvider } from "@/components/Toast";
 
 const inter = Inter({ 
@@ -26,13 +27,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
-      <body className="antialiased min-h-screen bg-background font-sans text-foreground">
+    <html lang="en" className={`${inter.variable} ${outfit.variable} h-[100dvh] overflow-hidden`} suppressHydrationWarning>
+      <body className="antialiased h-[100dvh] max-h-[100dvh] flex flex-col bg-background font-sans text-foreground overflow-hidden" suppressHydrationWarning>
         <ToastProvider>
           <Navbar />
-          <main className="pt-24 pb-12 animate-fade-in-up">
+          <main className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto overflow-x-hidden pt-16 sm:pt-20 pb-20 md:pb-3 w-full animate-fade-in-up custom-scrollbar">
             {children}
           </main>
+          <MobileFooterNav />
         </ToastProvider>
       </body>
     </html>
