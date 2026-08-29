@@ -612,48 +612,43 @@ export default function AudioRecorder({ onSuccess, language = "multi", className
         </SpeakerAmbientVisualizer>
 
         {isProcessing && (
-          <div className="border-t border-slate-800/80 bg-slate-900/60 px-8 py-6 animate-fade-in-up backdrop-blur-md">
-            <div className="flex items-center gap-2 mb-4">
-              <Zap className="w-4 h-4 text-cyan-400" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI Processing Pipeline</span>
-            </div>
-            <div className="flex items-center gap-0">
-              {PIPELINE_STEPS.map((step, idx) => {
-                const isActive = step.key === pipelineStep;
-                const isComplete = currentStepIndex > idx;
-                const StepIcon = step.icon;
-                
-                return (
-                  <React.Fragment key={step.key}>
-                    <div className="flex flex-col items-center gap-2 flex-1">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                        isComplete ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]" 
-                        : isActive ? "bg-cyan-500/20 text-cyan-300 ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900" 
-                        : "bg-slate-800 text-slate-500"
-                      }`}>
-                        {isComplete ? <CheckCircle2 className="w-5 h-5" /> 
-                        : isActive ? <Loader2 className="w-5 h-5 animate-spin" /> 
-                        : <StepIcon className="w-5 h-5" />}
-                      </div>
-                      <div className="text-center">
-                        <p className={`text-xs font-bold ${isActive ? "text-cyan-300" : isComplete ? "text-cyan-400" : "text-slate-500"}`}>
-                          {step.label}
-                        </p>
-                        {isActive && (
-                          <p className="text-[10px] text-slate-400 mt-0.5 max-w-[140px] leading-tight">
-                            {step.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {idx < PIPELINE_STEPS.length - 1 && (
-                      <div className={`h-0.5 flex-1 mx-1 rounded-full transition-all duration-500 ${
-                        isComplete || (currentStepIndex > idx) ? "bg-cyan-500 shadow-[0_0_8px_#06b6d4]" : "bg-slate-800"
-                      }`} />
-                    )}
-                  </React.Fragment>
-                );
-              })}
+          <div className="border-t border-slate-800/80 bg-slate-950/90 p-4 sm:p-6 animate-fade-in-up backdrop-blur-xl">
+            <div className="max-w-md mx-auto space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-inner">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white tracking-tight">
+                      {pipelineStep === "transcribing" && "Transcribing Audio & Speakers..."}
+                      {pipelineStep === "generating" && "Generating Clinical SOAP Note..."}
+                      {pipelineStep === "done" && "Encounter Saved Successfully!"}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {pipelineStep === "transcribing" && "Deepgram Nova-3 Multi-Speaker Diarization"}
+                      {pipelineStep === "generating" && "Cloudflare Llama 3.3 Clinical Extraction"}
+                      {pipelineStep === "done" && "Ready for review in Notes editor"}
+                    </p>
+                  </div>
+                </div>
+
+                <span className="text-[11px] font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                  {pipelineStep === "transcribing" && "45%"}
+                  {pipelineStep === "generating" && "85%"}
+                  {pipelineStep === "done" && "100%"}
+                </span>
+              </div>
+
+              {/* Traditional Clean Animated Gradient Progress Bar */}
+              <div className="w-full h-2 rounded-full bg-slate-800/80 overflow-hidden p-0.5 border border-slate-700/60">
+                <div 
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 transition-all duration-500 shadow-[0_0_10px_#06b6d4]"
+                  style={{
+                    width: pipelineStep === "transcribing" ? "45%" : pipelineStep === "generating" ? "85%" : "100%"
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

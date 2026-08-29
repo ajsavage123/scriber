@@ -134,10 +134,10 @@ export default function SpeakerAmbientVisualizer({
         <div className="flex-1 min-h-[40px] pointer-events-none" />
 
         {/* Bottom Actions & Indicator Section */}
-        <div className="space-y-2 pt-1 pb-1 sm:pb-2">
-          {/* Action Button Controls (Embedded in Siri Studio) */}
+        <div className="space-y-3 pt-2 pb-12 sm:pb-4">
+          {/* Action Button Controls (Prominently Elevated) */}
           {children && (
-            <div className="flex items-center justify-center pb-1">
+            <div className="flex items-center justify-center pb-2">
               {children}
             </div>
           )}

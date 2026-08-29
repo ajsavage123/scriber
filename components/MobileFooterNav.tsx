@@ -16,22 +16,29 @@ export default function MobileFooterNav() {
   const handleRecordClick = (e: React.MouseEvent) => {
     if (pathname === "/") {
       e.preventDefault();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const mainContainer = document.querySelector("main");
+      if (mainContainer) {
+        mainContainer.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    } else {
+      router.push("/");
     }
   };
 
   const handleNotesClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (pathname === "/") {
-      e.preventDefault();
       const noteSection = document.getElementById("notes-section") || document.querySelector("article");
+      const mainContainer = document.querySelector("main");
       if (noteSection) {
-        noteSection.scrollIntoView({ behavior: "smooth" });
+        noteSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else if (mainContainer && mainContainer.scrollHeight > mainContainer.clientHeight) {
+        mainContainer.scrollTo({ top: mainContainer.scrollHeight, behavior: "smooth" });
       } else {
-        // Scroll slightly down to review area if no note yet
-        window.scrollTo({ top: 400, behavior: "smooth" });
+        router.push("/history");
       }
     } else {
-      router.push("/#notes");
+      router.push("/history");
     }
   };
 

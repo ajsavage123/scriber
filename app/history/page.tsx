@@ -227,34 +227,34 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="space-y-8 animate-fade-in-up">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pb-16 w-full overflow-hidden">
+      <div className="space-y-6 animate-fade-in-up">
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-6 mt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200/80 pb-5 mt-2">
           <div className="space-y-1">
-            <h1 className="text-3xl font-display font-bold text-gray-900 tracking-tight flex items-center gap-3">
-              <History className="w-8 h-8 text-emerald-600" />
+            <h1 className="text-2xl sm:text-3xl font-display font-bold text-gray-900 tracking-tight flex items-center gap-2.5">
+              <History className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-600" />
               Consultation Records
             </h1>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-500 text-xs sm:text-sm">
               Review, edit, or purge historical clinical AI documentation.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search patient ID or language..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 text-xs font-medium bg-white border border-slate-200/90 rounded-full outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all w-64 shadow-xs"
+                className="w-full pl-10 pr-4 py-2 text-xs font-medium bg-white border border-slate-200/90 rounded-full outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all shadow-xs"
               />
             </div>
             <Link
               href="/"
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-full shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-full shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 shrink-0"
             >
               + New Consultation
             </Link>
@@ -271,14 +271,14 @@ export default function HistoryPage() {
               <ArrowLeft className="w-4 h-4" /> Back to History List
             </button>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
               {/* Transcript */}
-              <article className="glass-card rounded-[32px] p-6 lg:p-8 flex flex-col h-[750px] space-y-4">
+              <article className="glass-card rounded-[28px] sm:rounded-[32px] p-4 sm:p-6 lg:p-8 flex flex-col h-[650px] sm:h-[750px] space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100/60">
-                  <h2 className="text-xl font-display font-bold text-gray-900">
-                    Diarized Transcript — {selectedConsultation.patient_synthetic_id}
+                  <h2 className="text-lg sm:text-xl font-display font-bold text-gray-900 line-clamp-1">
+                    Transcript — {selectedConsultation.patient_synthetic_id}
                   </h2>
-                  <span className="text-xs font-semibold text-gray-500 uppercase px-3 py-1 bg-slate-100 rounded-full">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase px-2.5 py-0.5 bg-slate-100 rounded-full shrink-0">
                     🌐 {selectedConsultation.selected_language}
                   </span>
                 </div>
@@ -295,29 +295,32 @@ export default function HistoryPage() {
               </article>
 
               {/* SOAP Note */}
-              <article className="glass-card rounded-[32px] p-6 lg:p-8 flex flex-col h-[750px]">
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100/60">
-                  <h2 className="text-xl font-display font-bold text-gray-900">
-                    Clinical Note Review
+              <article className="glass-card rounded-[28px] sm:rounded-[32px] p-4 sm:p-6 lg:p-8 flex flex-col h-[650px] sm:h-[750px]">
+                <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100/60">
+                  <h2 className="text-lg sm:text-xl font-display font-bold text-gray-900">
+                    Clinical SOAP Note
                   </h2>
-                  <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
-                    {selectedConsultation.status === "SIGNED" ? "✓ Signed EHR" : "Pending Signature"}
-                  </span>
+                  {hasSpeakerCorrection && (
+                    <button
+                      onClick={handleRegenerateSoap}
+                      disabled={isRetryingSoap}
+                      className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[10px] rounded-full transition-all flex items-center gap-1 shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {isRetryingSoap ? "Regenerating..." : "✨ Update SOAP"}
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-hidden">
                   <NoteEditor
-                    key={selectedConsultation.id}
-                    initialNote={selectedConsultation.final_approved_soap_note || selectedConsultation.raw_ai_soap_note!}
+                    initialNote={selectedConsultation.final_approved_soap_note || selectedConsultation.raw_ai_soap_note}
                     onSave={handleSaveNote}
                     onErase={() => handleErase(selectedConsultation.id)}
-                    onRetrySoap={handleRegenerateSoap}
                     onRemapRoles={handleRemapRoles}
                     onRegenerateSoap={handleRegenerateSoap}
-                    isPendingSoap={selectedConsultation.status === "TRANSCRIBED" || !selectedConsultation.raw_ai_soap_note}
-                    isRetrying={isRetryingSoap}
-                    isRemapping={isRemappingSoap}
                     isFinalized={selectedConsultation.status === "SIGNED"}
+                    isRemapping={isRemappingSoap}
+                    isRetrying={isRetryingSoap}
                     hasSpeakerCorrection={hasSpeakerCorrection}
                   />
                 </div>
@@ -328,30 +331,35 @@ export default function HistoryPage() {
           /* Consultations List View */
           <div>
             {loading ? (
-              <div className="py-16 text-center text-gray-400 font-medium animate-pulse">
-                Loading saved consultation records from Supabase...
+              <div className="py-20 text-center space-y-3">
+                <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-gray-400 font-medium">Fetching secure records...</p>
               </div>
             ) : filtered.length === 0 ? (
-              <div className="glass-card rounded-[32px] p-12 text-center space-y-4">
-                <FileText className="w-12 h-12 text-gray-300 mx-auto" />
-                <h3 className="text-lg font-bold text-gray-800">No Consultations Found</h3>
-                <p className="text-gray-500 text-sm max-w-sm mx-auto">
-                  {search ? "No records match your search filter." : "You haven't completed any consultations yet. Start recording from the dashboard."}
-                </p>
+              <div className="py-20 text-center space-y-4 bg-white/60 rounded-3xl border border-dashed border-slate-200 p-8">
+                <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mx-auto border border-slate-200/80 shadow-xs">
+                  <FileText className="w-7 h-7" />
+                </div>
+                <div className="space-y-1 max-w-sm mx-auto">
+                  <h3 className="text-base font-bold text-gray-900">No consultation records found</h3>
+                  <p className="text-xs text-gray-500">
+                    Complete your first ambient recording on the Dashboard to see clinical documentation archived here.
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
                 {filtered.map((c) => (
                   <div
                     key={c.id}
-                    className="glass-card rounded-3xl p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group border border-slate-200/80"
+                    className="tile-3d-card rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group border border-slate-200/90 w-full overflow-hidden"
                   >
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 shadow-2xs">
+                        <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 shadow-2xs">
                           {c.patient_synthetic_id}
                         </span>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                           c.status === "SIGNED" ? "bg-emerald-100 text-emerald-800 border border-emerald-200/60" : "bg-amber-100 text-amber-800 border border-amber-200/60"
                         }`}>
                           {c.status === "SIGNED" ? "✓ Signed" : "Draft"}
@@ -359,15 +367,15 @@ export default function HistoryPage() {
                       </div>
 
                       <div>
-                        <h4 className="font-bold text-gray-900 line-clamp-1">
+                        <h4 className="font-bold text-sm sm:text-base text-gray-900 line-clamp-1">
                           {c.final_approved_soap_note?.chief_complaint || c.raw_ai_soap_note?.chief_complaint || "General Practice Visit"}
                         </h4>
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
                           {c.final_approved_soap_note?.assessment || c.raw_ai_soap_note?.assessment || "Clinical assessment completed via AI scribe."}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs text-gray-400 pt-2 border-t border-gray-100">
+                      <div className="flex items-center gap-3 text-xs text-gray-400 pt-2 border-t border-gray-100">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           {new Date(c.created_at).toLocaleDateString()}
@@ -378,16 +386,16 @@ export default function HistoryPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-5 mt-4 border-t border-gray-100/60">
+                    <div className="flex items-center gap-2 pt-4 mt-3 border-t border-gray-100/60">
                       <button
                         onClick={() => setSelectedConsultation(c)}
-                        className="flex-1 py-2.5 px-4 bg-gray-900 hover:bg-emerald-600 text-white font-bold text-xs rounded-full transition-all duration-300 text-center cursor-pointer shadow-sm"
+                        className="flex-1 py-2 px-3 bg-gray-900 hover:bg-emerald-600 text-white font-bold text-xs rounded-full transition-all duration-300 text-center cursor-pointer shadow-xs"
                       >
                         Review & Edit Note
                       </button>
                       <button
                         onClick={() => handleErase(c.id)}
-                        className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors cursor-pointer"
+                        className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors cursor-pointer shrink-0"
                         title="Purge under DPDP Act"
                       >
                         <Trash2 className="w-4 h-4" />

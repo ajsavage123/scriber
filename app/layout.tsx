@@ -47,7 +47,7 @@ export default function RootLayout({
       <body className="antialiased h-[100dvh] max-h-[100dvh] flex flex-col bg-background font-sans text-foreground overflow-hidden" suppressHydrationWarning>
         <ToastProvider>
           <Navbar />
-          <main className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto overflow-x-hidden pt-12 sm:pt-14 pb-16 md:pb-1 w-full animate-fade-in-up custom-scrollbar">
+          <main className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto overflow-x-hidden pt-16 sm:pt-18 pb-20 md:pb-3 w-full animate-fade-in-up custom-scrollbar">
             {children}
           </main>
           <MobileFooterNav />

@@ -36,6 +36,14 @@ export default function Dashboard() {
     setActiveConsultation(cons);
     setActiveReviewTab(cons.status === "TRANSCRIBED" ? "transcript" : "soap");
     setHasSpeakerCorrection(false);
+    
+    // Smoothly roll out and scroll to the generated SOAP Note & Transcript
+    setTimeout(() => {
+      const noteSection = document.getElementById("notes-section");
+      if (noteSection) {
+        noteSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 150);
   }, []);
 
   const handleUpdateSpeakerRoles = async (
